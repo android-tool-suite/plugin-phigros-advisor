@@ -1,4 +1,4 @@
-package com.example.shizukuaccessibilitygrant.plugins.phigros
+package com.androidtoolsuite.app.plugins.phigros
 
 import android.app.Activity
 import android.Manifest
@@ -13,12 +13,12 @@ import android.provider.MediaStore
 import android.view.View
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import com.example.shizukuaccessibilitygrant.plugin.api.HomeWidget
-import com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize
-import com.example.shizukuaccessibilitygrant.plugin.api.PluginHost
-import com.example.shizukuaccessibilitygrant.plugin.api.ToolPlugin
-import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor
-import com.example.shizukuaccessibilitygrant.ui.composePluginView
+import com.androidtoolsuite.app.plugin.api.HomeWidget
+import com.androidtoolsuite.app.plugin.api.HomeWidgetSize
+import com.androidtoolsuite.app.plugin.api.PluginHost
+import com.androidtoolsuite.app.plugin.api.ToolPlugin
+import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor
+import com.androidtoolsuite.app.ui.composePluginView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

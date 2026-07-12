@@ -1,4 +1,4 @@
-package com.example.shizukuaccessibilitygrant.plugins.phigros
+package com.androidtoolsuite.app.plugins.phigros
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -54,8 +54,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.shizukuaccessibilitygrant.ui.Notice
-import com.example.shizukuaccessibilitygrant.ui.SuiteCard
+import com.androidtoolsuite.app.ui.Notice
+import com.androidtoolsuite.app.ui.SuiteCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

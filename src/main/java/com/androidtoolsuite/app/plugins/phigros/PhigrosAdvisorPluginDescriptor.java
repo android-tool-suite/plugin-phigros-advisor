@@ -1,6 +1,6 @@
-package com.example.shizukuaccessibilitygrant.plugins.phigros;
+package com.androidtoolsuite.app.plugins.phigros;
 
-import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
+import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -20,7 +20,7 @@ public final class PhigrosAdvisorPluginDescriptor {
                 "2.0.5",
                 "Android Tool Suite · Phigros Data Studio",
                 "1",
-                "com.example.shizukuaccessibilitygrant.plugins.phigros.PhigrosAdvisorPlugin",
+                "com.androidtoolsuite.app.plugins.phigros.PhigrosAdvisorPlugin",
                 "",
                 dependencies,
                 Collections.emptyList()

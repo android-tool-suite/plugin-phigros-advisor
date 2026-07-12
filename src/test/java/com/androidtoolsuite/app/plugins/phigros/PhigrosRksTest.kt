@@ -1,4 +1,4 @@
-package com.example.shizukuaccessibilitygrant.plugins.phigros
+package com.androidtoolsuite.app.plugins.phigros
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
