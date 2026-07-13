@@ -5,6 +5,7 @@ plugins {
 }
 
 def pluginVersionName = "2.0.6"
+def pluginSdkVersion = providers.gradleProperty("atsPluginSdkVersion").get()
 
 android {
     namespace "com.androidtoolsuite.app.plugin.phigros"
@@ -34,9 +35,9 @@ kotlin {
 }
 
 dependencies {
-    compileOnly project(":plugin-sdk")
+    compileOnly "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
     implementation "com.google.zxing:core:3.5.3"
-    testImplementation project(":plugin-sdk")
+    testImplementation "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
     testImplementation "junit:junit:4.13.2"
 }
 
@@ -54,7 +55,17 @@ tasks.register("packagePlugin", Zip) {
     archiveFileName = "phigros-advisor.atsplugin"
     destinationDirectory = layout.buildDirectory.dir("outputs/atsplugin")
     from(generatePluginManifest)
-    from(layout.buildDirectory.file("outputs/apk/debug/phigros-advisor-debug.apk")) {
+    from(layout.buildDirectory.file("outputs/apk/debug/android-tool-suite-phigros-advisor-debug.apk")) {
         rename { "plugin.apk" }
+    }
+}
+
+tasks.register("collectArtifacts", Copy) {
+    dependsOn "packagePlugin"
+    group = "distribution"
+    description = "Collects the Phigros plugin package in the root artifacts directory."
+    into layout.projectDirectory.dir("artifacts")
+    from(layout.buildDirectory.dir("outputs/atsplugin")) {
+        include "phigros-advisor.atsplugin"
     }
 }

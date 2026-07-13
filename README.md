@@ -102,15 +102,32 @@ QrBitmap.kt               TapTap 登录二维码编码
 
 ## 构建与测试
 
+本仓库只包含 Phigros Data Studio，一个插件对应一个独立 Git 仓库。它不直接引用主体应用的 Gradle project，只消费版本化的 `com.androidtoolsuite:plugin-sdk` AAR。
+
+首次本地构建前，在主体应用仓库发布 SDK：
+
 ```powershell
-gradle :plugins:phigros-advisor:testDebugUnitTest
-gradle :plugins:phigros-advisor:packagePlugin
+gradle -p ..\..\app :plugin-sdk:publishToMavenLocal
+```
+
+然后执行测试并收集插件包：
+
+```powershell
+gradle testDebugUnitTest
+gradle clean collectArtifacts
+```
+
+也可以直接消费主体仓库内的临时 Maven 仓库：
+
+```powershell
+gradle -p ..\..\app :plugin-sdk:publishReleasePublicationToPluginSdkRepository
+gradle -PatsSdkRepository=..\..\app\plugin-sdk\build\repository clean collectArtifacts
 ```
 
 插件包输出：
 
 ```text
-plugins/phigros-advisor/build/outputs/atsplugin/phigros-advisor.atsplugin
+artifacts/phigros-advisor.atsplugin
 ```
 
 最低 Android 版本为 7.0（API 24），目标 SDK 为 35。二维码编码使用 ZXing Core 3.5.3。
