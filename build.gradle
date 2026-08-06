@@ -4,8 +4,8 @@ plugins {
     id "org.jetbrains.kotlin.plugin.compose"
 }
 
-def pluginVersionName = "2.1.0"
-def pluginVersionCode = 10
+def pluginVersionName = "2.2.0"
+def pluginVersionCode = 11
 def minHostVersionCode = 11
 def pluginSdkVersion = providers.gradleProperty("atsPluginSdkVersion").get()
 

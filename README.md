@@ -130,6 +130,12 @@ gradle -PatsSdkRepository=..\..\app\plugin-sdk\build\repository clean collectArt
 artifacts/phigros-advisor.atsplugin
 ```
 
+## 发布通道
+
+- 推送 `main` 并通过单元测试与构建后，工作流更新滚动 `debug` 预发布，宿主调试仓库随后可自动发现该构建。
+- 推送 `v<versionName>` 标签后，工作流测试、构建并发布正式 Release。
+- 两种发布都会生成带通道信息的元数据和校验和，并通过 `REGISTRY_DISPATCH_TOKEN` 事件通知插件索引更新。
+
 最低 Android 版本为 7.0（API 24），目标 SDK 为 35。二维码编码使用 ZXing Core 3.5.3。
 
 ## 已知限制
