@@ -3,6 +3,8 @@ package com.androidtoolsuite.app.plugins.phigros
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,10 +40,12 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,8 +58,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.androidtoolsuite.app.ui.EmptyState
 import com.androidtoolsuite.app.ui.Notice
 import com.androidtoolsuite.app.ui.SuiteCard
+import com.androidtoolsuite.app.ui.SuiteSemantic
+import com.androidtoolsuite.app.ui.SuiteShapes
+import com.androidtoolsuite.app.ui.SuiteTheming
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,7 +94,12 @@ internal fun PhigrosAdvisorScreen(plugin: PhigrosAdvisorPlugin) {
                     Text("本地优先的云存档分析与制图", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (ui.snapshot.overall > 0.0) {
-                    Text(format(ui.snapshot.overall, 4), style = MaterialTheme.typography.headlineSmall, color = Color(0xFFE2B93B), fontWeight = FontWeight.Bold)
+                    Text(
+                        format(ui.snapshot.overall, 4),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = PhigrosPalette.phi(SuiteTheming.isDark),
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
             if (ui.loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 6.dp))
@@ -101,13 +114,26 @@ internal fun PhigrosAdvisorScreen(plugin: PhigrosAdvisorPlugin) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        when (ui.page) {
-            PhigrosPage.OVERVIEW -> OverviewPage(ui, plugin)
-            PhigrosPage.SCORES -> ScoresPage(ui)
-            PhigrosPage.B30 -> B30Page(ui, plugin)
-            PhigrosPage.HISTORY -> HistoryPage(ui)
-            PhigrosPage.CATALOG -> CatalogPage(ui, plugin)
-            PhigrosPage.TOKENS -> TokensPage(ui, plugin)
+        // 页码与插件自己的 page 状态双向同步：点标签由第一个 effect 滑过去，
+        // 手指滑动由第二个 effect 回写标签。两边都先比对当前值，避免互相触发。
+        val pagerState = rememberPagerState(initialPage = ui.page.ordinal) { PhigrosPage.entries.size }
+        LaunchedEffect(ui.page) {
+            if (pagerState.currentPage != ui.page.ordinal) pagerState.animateScrollToPage(ui.page.ordinal)
+        }
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.settledPage }.collect { page ->
+                PhigrosPage.entries.getOrNull(page)?.let { if (it != ui.page) plugin.selectPage(it) }
+            }
+        }
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            when (PhigrosPage.entries[page]) {
+                PhigrosPage.OVERVIEW -> OverviewPage(ui, plugin)
+                PhigrosPage.SCORES -> ScoresPage(ui)
+                PhigrosPage.B30 -> B30Page(ui, plugin)
+                PhigrosPage.HISTORY -> HistoryPage(ui)
+                PhigrosPage.CATALOG -> CatalogPage(ui, plugin)
+                PhigrosPage.TOKENS -> TokensPage(ui, plugin)
+            }
         }
     }
 }
@@ -246,8 +272,12 @@ private fun RecordCard(rankLabel: String, record: ChartRecord, target: PushTarge
                 ValueCell("准确率", "${format(record.accuracy, 4)}%")
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("推分 ACC  ${target?.label ?: "—"}", color = Color(0xFF2E7D5A), fontWeight = FontWeight.SemiBold)
-                Text("单曲 RKS  ${format(record.rks, 4)}", color = Color(0xFFB28704), fontWeight = FontWeight.Bold)
+                Text("推分 ACC  ${target?.label ?: "—"}", color = SuiteSemantic.current.success, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "单曲 RKS  ${format(record.rks, 4)}",
+                    color = PhigrosPalette.phi(SuiteTheming.isDark),
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }
@@ -276,7 +306,18 @@ private fun B30Page(ui: PhigrosUiState, plugin: PhigrosAdvisorPlugin) {
                 OutlinedButton(onClick = plugin::generateProfileImage, enabled = !ui.loading && ui.save != null, modifier = Modifier.weight(1f)) { Text("个人信息图") }
             }
         }
-        item { Notice("B30 采用 P3 + B27 口径：3 个最高满分谱面与 27 个最高单曲 RKS 相加后除以 30。") }
+        item {
+            var formulaVisible by remember { mutableStateOf(false) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("B30", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { formulaVisible = !formulaVisible }) {
+                    Text(if (formulaVisible) "收起口径" else "计算口径")
+                }
+            }
+            if (formulaVisible) {
+                Notice("P3 + B27：3 个最高满分谱面与 27 个最高单曲 RKS 相加后除以 30。")
+            }
+        }
         if (entries.isEmpty()) item { EmptyHint("暂无 B30 数据") }
         items(entries, key = { it.first + it.second.identity }) { (rank, record) ->
             RecordCard(rank, record, ui.pushTargets[record.identity])
@@ -301,7 +342,7 @@ private fun HistoryPage(ui: PhigrosUiState) {
                 }
             }
         }
-        item { Notice("每次同步会在本机按令牌分别记录 RKS、课题模式与谱面提升，不上传历史数据；每个节点使用该次同步时的曲库定数。") }
+        item { Notice("历史记录仅保存在本机。") }
         if (events.isEmpty()) item { EmptyHint("当前时间范围内没有推分记录；同步一次云存档后开始记录") }
         items(events, key = { "${it.timestamp}-${it.saveTimestamp}" }) { event -> TimelineCard(event) }
     }
@@ -322,7 +363,7 @@ private fun TimelineCard(event: TimelineEvent) {
                     Text(formatDate(event.timestamp), fontWeight = FontWeight.Bold)
                     Text(
                         if (event.oldRks == null) "RKS ${format(event.newRks, 4)}" else "${signed(event.rksDelta)} → ${format(event.newRks, 4)}",
-                        color = if (event.rksDelta >= 0) Color(0xFF24845E) else MaterialTheme.colorScheme.error,
+                        color = if (event.rksDelta >= 0) SuiteSemantic.current.success else SuiteSemantic.current.danger,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -332,7 +373,7 @@ private fun TimelineCard(event: TimelineEvent) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${change.title} [${change.level}]", modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Spacer(Modifier.width(8.dp))
-                            Text(change.tag, color = Color(0xFF2D7C9B), style = MaterialTheme.typography.labelMedium)
+                            Text(change.tag, color = SuiteSemantic.current.info, style = MaterialTheme.typography.labelMedium)
                         }
                         val score = change.oldScore?.let { "%07d → %07d".format(it, change.newScore) }
                             ?: "%07d".format(change.newScore)
@@ -533,7 +574,7 @@ private fun GeneratedPreviewDialog(image: GeneratedImage, plugin: PhigrosAdvisor
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(.94f).fillMaxHeight(.9f),
-            shape = RoundedCornerShape(24.dp),
+            shape = SuiteShapes.Card,
         ) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(18.dp),
@@ -563,11 +604,7 @@ private fun GeneratedPreviewDialog(image: GeneratedImage, plugin: PhigrosAdvisor
 }
 
 @Composable
-private fun EmptyHint(text: String) {
-    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(18.dp)).padding(24.dp)) {
-        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
+private fun EmptyHint(text: String) = EmptyState(title = text, body = "")
 
 @Composable
 internal fun PhigrosHomeWidget(player: String, rks: Double, count: Int) {
@@ -580,20 +617,34 @@ internal fun PhigrosHomeWidget(player: String, rks: Double, count: Int) {
 
 private data class CatalogChart(val song: SongInfo, val level: String, val constant: Double)
 
-@Composable
-private fun levelColor(level: String): Color = when (level) {
-    "EZ" -> Color(0xFF23965C)
-    "HD" -> Color(0xFF247FC4)
-    "IN" -> Color(0xFFC63C54)
-    "AT" -> Color(0xFF8657C5)
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
+/**
+ * 难度与评级配色是 Phigros 自己的视觉语言（EZ 绿 / HD 蓝 / IN 紫 / AT 红、PHI 金），
+ * 只有本插件需要，所以调色板留在插件内部，不放进 SDK。
+ * 每档给出浅色/深色两个值，深色档提高亮度，保证在深色面板上仍然可读。
+ */
+private object PhigrosPalette {
+    private val level = mapOf(
+        "EZ" to (Color(0xFF2F7D4F) to Color(0xFF7ED39B)),
+        "HD" to (Color(0xFF2A6FB0) to Color(0xFF8CC0F0)),
+        "IN" to (Color(0xFF8A4BA8) to Color(0xFFCFA3E8)),
+        "AT" to (Color(0xFFB33A46) to Color(0xFFF0A2AA)),
+    )
+    private val phiGold = Color(0xFFB07206) to Color(0xFFF0C060)
+
+    fun level(name: String, dark: Boolean): Color? = level[name]?.let { if (dark) it.second else it.first }
+    fun phi(dark: Boolean): Color = if (dark) phiGold.second else phiGold.first
 }
 
+@Composable
+private fun levelColor(level: String): Color =
+    PhigrosPalette.level(level, SuiteTheming.isDark) ?: MaterialTheme.colorScheme.onSurfaceVariant
+
+@Composable
 private fun ratingColor(rating: String): Color = when (rating) {
-    "PHI" -> Color(0xFFD39B00)
-    "FC" -> Color(0xFF0089A8)
-    "V", "S" -> Color(0xFF21865D)
-    else -> Color(0xFF6F7782)
+    "PHI" -> PhigrosPalette.phi(SuiteTheming.isDark)
+    "FC" -> levelColor("HD")
+    "V", "S" -> SuiteSemantic.current.success
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 private fun format(value: Double, digits: Int): String = String.format(Locale.ROOT, "%.${digits}f", value)
