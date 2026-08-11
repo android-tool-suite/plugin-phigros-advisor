@@ -135,6 +135,7 @@ artifacts/phigros-advisor.atsplugin
 - 推送 `main` 并通过单元测试与构建后，工作流保留 `debug-<完整提交 SHA>` 历史快照并更新滚动 `debug` 预发布；宿主调试仓库自动发现最新构建，Pages 发布中心可选择历史构建。
 - 推送 `v<versionName>` 标签后，工作流测试、构建并发布正式 Release。
 - 两种发布都会生成带通道信息的元数据和校验和，并通过 GitHub App 短时令牌发送事件通知插件索引更新。
+- `data-compatibility.json` 声明当前构建可能写入的数据格式及可读取范围；修改令牌、缓存或历史文件格式时必须同步递增并评估兼容范围，宿主据此决定是否允许历史版本降级。
 
 最低 Android 版本为 7.0（API 24），目标 SDK 为 35。二维码编码使用 ZXing Core 3.5.3。
 
