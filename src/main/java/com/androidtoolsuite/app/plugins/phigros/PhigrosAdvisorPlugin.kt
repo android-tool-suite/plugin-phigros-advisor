@@ -17,6 +17,7 @@ import com.androidtoolsuite.app.plugin.api.HomeWidget
 import com.androidtoolsuite.app.plugin.api.HomeWidgetSize
 import com.androidtoolsuite.app.plugin.api.PluginHost
 import com.androidtoolsuite.app.plugin.api.ToolPlugin
+import com.androidtoolsuite.app.plugin.migration.LegacyDataBridge
 import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor
 import com.androidtoolsuite.app.ui.composePluginView
 import java.text.SimpleDateFormat
@@ -47,6 +48,7 @@ class PhigrosAdvisorPlugin(
     override fun version(): String = descriptor.version
     override fun removable(): Boolean = true
     override fun dependencies(): Set<String> = descriptor.dependencies
+    override fun legacyDataBridge(): LegacyDataBridge = PhigrosLegacyDataBridge()
 
     override fun createHomeWidgets(activity: Activity, host: PluginHost): List<HomeWidget> = listOf(
         object : HomeWidget {

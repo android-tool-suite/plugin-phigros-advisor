@@ -4,9 +4,9 @@ plugins {
     id "org.jetbrains.kotlin.plugin.compose"
 }
 
-def pluginVersionName = "2.2.1"
-def pluginVersionCode = 12
-def minHostVersionCode = 11
+def pluginVersionName = "2.3.0-bridge.1"
+def pluginVersionCode = 13
+def minHostVersionCode = 17
 def pluginSdkVersion = providers.gradleProperty("atsPluginSdkVersion").get()
 
 android {
@@ -41,6 +41,7 @@ dependencies {
     implementation "com.google.zxing:core:3.5.3"
     testImplementation "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20240303"
 }
 
 def generatePluginManifest = tasks.register("generatePluginManifest", Copy) {

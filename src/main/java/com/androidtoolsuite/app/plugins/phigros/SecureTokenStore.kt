@@ -30,6 +30,32 @@ internal class SecureTokenStore(context: Context) {
 
     fun selectedId(): String? = preferences.getString(KEY_SELECTED, null)
 
+    /** Metadata-only profile snapshot for the read-only Migration Bridge. */
+    fun migrationProfiles(): JSONArray = JSONArray().also { result ->
+        readItems().forEach { item ->
+            result.put(
+                JSONObject()
+                    .put("id", item.getString("id"))
+                    .put("label", item.optString("label", "Phigros"))
+                    .put("server", item.optString("server", PhigrosServer.CN.name))
+                    .put("createdAt", item.optLong("createdAt", 0L))
+                    .put("lastUsedAt", item.optLong("lastUsedAt", 0L)),
+            )
+        }
+    }
+
+    /** Plaintext is exposed only to the encrypted streaming export path. */
+    fun migrationSecrets(): JSONArray = JSONArray().also { result ->
+        val key = existingSecretKey()
+        readItems().forEach { item ->
+            result.put(
+                JSONObject()
+                    .put("id", item.getString("id"))
+                    .put("token", decrypt(item.getString("secret"), key)),
+            )
+        }
+    }
+
     fun selected(): StoredToken? {
         val id = selectedId() ?: return null
         return get(id)
@@ -116,15 +142,26 @@ internal class SecureTokenStore(context: Context) {
     }
 
     private fun decrypt(payload: String): String {
+        return decrypt(payload, secretKey())
+    }
+
+    private fun decrypt(payload: String, key: SecretKey): String {
         val parts = payload.split('.', limit = 2)
         require(parts.size == 2) { "令牌密文损坏" }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(
             Cipher.DECRYPT_MODE,
-            secretKey(),
+            key,
             GCMParameterSpec(128, Base64.decode(parts[0], Base64.NO_WRAP)),
         )
         return String(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)), Charsets.UTF_8)
+    }
+
+    private fun existingSecretKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        return requireNotNull(keyStore.getKey(KEY_ALIAS, null) as? SecretKey) {
+            "Phigros SessionToken Keystore 密钥不存在"
+        }
     }
 
     private fun secretKey(): SecretKey {
