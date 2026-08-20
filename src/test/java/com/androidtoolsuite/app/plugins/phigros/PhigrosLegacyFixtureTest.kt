@@ -17,6 +17,9 @@ class PhigrosLegacyFixtureTest {
         }.toSet())
 
         val tokens = fixture("session-tokens.json").getJSONArray("tokens")
+        val profileIds = (0 until items.length()).map { items.getJSONObject(it).getString("id") }.toSet()
+        val tokenIds = (0 until tokens.length()).map { tokens.getJSONObject(it).getString("id") }.toSet()
+        assertEquals(profileIds, tokenIds)
         assertTrue((0 until tokens.length()).all {
             SecureTokenStore.TOKEN_PATTERN.matches(tokens.getJSONObject(it).getString("token"))
         })

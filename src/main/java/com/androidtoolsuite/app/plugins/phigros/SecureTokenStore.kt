@@ -56,6 +56,55 @@ internal class SecureTokenStore(context: Context) {
         }
     }
 
+    fun restoreMigrationProfiles(profiles: JSONArray, selectedId: String?) {
+        val restored = JSONArray()
+        val ids = linkedSetOf<String>()
+        for (index in 0 until profiles.length()) {
+            val item = profiles.getJSONObject(index)
+            val id = item.getString("id").trim()
+            require(id.isNotEmpty() && ids.add(id)) { "账号档案 ID 无效或重复" }
+            val server = PhigrosServer.valueOf(item.optString("server", PhigrosServer.CN.name))
+            restored.put(
+                JSONObject()
+                    .put("id", id)
+                    .put("label", item.optString("label", "Phigros").trim().ifBlank { "Phigros ${server.label}" })
+                    .put("server", server.name)
+                    .put("createdAt", item.optLong("createdAt", 0L).coerceAtLeast(0L))
+                    .put("lastUsedAt", item.optLong("lastUsedAt", 0L).coerceAtLeast(0L)),
+            )
+        }
+        require(selectedId == null || selectedId in ids) { "所选账号不在档案列表中" }
+        val editor = preferences.edit().putString(KEY_PROFILES, restored.toString())
+        if (selectedId == null) editor.remove(KEY_SELECTED) else editor.putString(KEY_SELECTED, selectedId)
+        check(editor.commit()) { "无法保存账号档案" }
+        check(migrationProfiles().toString() == restored.toString() && this.selectedId() == selectedId) {
+            "账号档案恢复校验失败"
+        }
+    }
+
+    fun restoreMigrationSecrets(tokens: JSONArray) {
+        val items = readItems()
+        val byId = items.associateBy { it.getString("id") }
+        val plain = linkedMapOf<String, String>()
+        for (index in 0 until tokens.length()) {
+            val item = tokens.getJSONObject(index)
+            val id = item.getString("id")
+            val token = item.getString("token")
+            require(id in byId && plain.put(id, token) == null) { "SessionToken 账号无效或重复" }
+            require(TOKEN_PATTERN.matches(token)) { "SessionToken 格式错误" }
+        }
+        require(plain.keys == byId.keys) { "SessionToken 与账号档案不完整匹配" }
+        val restored = items.map { item ->
+            JSONObject(item.toString()).put("secret", encrypt(checkNotNull(plain[item.getString("id")])))
+        }
+        val array = JSONArray()
+        restored.forEach(array::put)
+        check(preferences.edit().putString(KEY_PROFILES, array.toString()).commit()) {
+            "无法保存 SessionToken"
+        }
+        check(plain.all { (id, token) -> get(id)?.token == token }) { "SessionToken 恢复校验失败" }
+    }
+
     fun selected(): StoredToken? {
         val id = selectedId() ?: return null
         return get(id)
