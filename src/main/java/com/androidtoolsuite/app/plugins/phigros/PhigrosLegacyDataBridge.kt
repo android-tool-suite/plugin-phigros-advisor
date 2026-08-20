@@ -46,7 +46,7 @@ internal class PhigrosLegacyDataBridge : LegacyDataBridge {
                 listOf("profiles"),
             ),
         )
-        if (tokenStore.migrationProfiles().length() > 0) {
+        if (tokenStore.hasMigrationSecrets()) {
             result += LegacyDatasetDescriptor(
                 "session-tokens",
                 "SessionToken",
@@ -109,18 +109,74 @@ internal class PhigrosLegacyDataBridge : LegacyDataBridge {
     override fun supportsImport(datasetId: String, dataFormatVersion: Int): Boolean =
         dataFormatVersion == 1 && datasetId in SUPPORTED_IMPORTS
 
+    override fun hasData(activity: Activity, datasetId: String): Boolean = when (datasetId) {
+        "profiles" -> SecureTokenStore(activity).migrationProfiles().length() > 0 ||
+            activity.getSharedPreferences(WIDGET_PREFS, Activity.MODE_PRIVATE).all.isNotEmpty()
+        "analysis-data" -> File(activity.filesDir, DATA_DIRECTORY).walkTopDown()
+            .any { it.isFile && it.name != CATALOG_FILE && !it.name.endsWith(".tmp") }
+        "session-tokens" -> SecureTokenStore(activity).hasMigrationSecrets()
+        "song-catalog" -> File(activity.filesDir, "$DATA_DIRECTORY/$CATALOG_FILE").isFile ||
+            legacyCatalog(activity).isNotBlank()
+        else -> error("未知 Dataset：$datasetId")
+    }
+
+    override fun supportsRestoreMode(
+        datasetId: String,
+        dataFormatVersion: Int,
+        mode: DatasetRestoreMode,
+    ): Boolean = supportsImport(datasetId, dataFormatVersion) && mode == DatasetRestoreMode.REPLACE
+
     override fun importDataset(
         activity: Activity,
         datasetId: String,
         dataFormatVersion: Int,
+        restoreMode: DatasetRestoreMode,
         input: InputStream,
     ) {
         require(supportsImport(datasetId, dataFormatVersion)) { "不支持的 Phigros Dataset" }
+        require(supportsRestoreMode(datasetId, dataFormatVersion, restoreMode)) { "此 Dataset 不支持合并" }
         when (datasetId) {
             "profiles" -> restoreProfiles(activity, input, dataFormatVersion)
             "analysis-data" -> restoreAnalysisData(File(activity.filesDir, DATA_DIRECTORY), input)
             "session-tokens" -> restoreSessionTokens(activity, input, dataFormatVersion)
             "song-catalog" -> restoreFile(File(activity.filesDir, "$DATA_DIRECTORY/$CATALOG_FILE"), input)
+        }
+    }
+
+    override fun supportsDelete(datasetId: String): Boolean = datasetId in SUPPORTED_IMPORTS
+
+    override fun deleteDataset(activity: Activity, datasetId: String) {
+        require(supportsDelete(datasetId)) { "不支持删除的 Phigros Dataset" }
+        when (datasetId) {
+            "profiles" -> {
+                SecureTokenStore(activity).clearMigrationProfiles()
+                val widget = activity.getSharedPreferences(WIDGET_PREFS, Activity.MODE_PRIVATE)
+                check(widget.edit().clear().commit()) { "无法删除 Phigros 小部件状态" }
+                check(widget.all.isEmpty()) { "Phigros 小部件状态删除校验失败" }
+            }
+            "analysis-data" -> deleteAnalysisData(File(activity.filesDir, DATA_DIRECTORY))
+            "session-tokens" -> SecureTokenStore(activity).clearMigrationSecrets()
+            "song-catalog" -> {
+                val catalog = File(activity.filesDir, "$DATA_DIRECTORY/$CATALOG_FILE")
+                if (catalog.exists() && !catalog.delete()) error("无法删除曲库缓存")
+                val legacy = activity.getSharedPreferences("phigros_advisor", Activity.MODE_PRIVATE)
+                check(legacy.edit().remove("difficulty_tsv").commit()) { "无法删除旧曲库缓存" }
+                check(!catalog.exists() && legacy.getString("difficulty_tsv", "").isNullOrEmpty()) {
+                    "曲库缓存删除校验失败"
+                }
+            }
+        }
+    }
+
+    private fun deleteAnalysisData(directory: File) {
+        if (!directory.exists()) return
+        directory.listFiles().orEmpty()
+            .filterNot { it.name == CATALOG_FILE }
+            .forEach { child ->
+                check(child.deleteRecursively()) { "无法删除分析数据：${child.name}" }
+            }
+        check(directory.listFiles().orEmpty().all { it.name == CATALOG_FILE }) {
+            "分析数据删除校验失败"
         }
     }
 

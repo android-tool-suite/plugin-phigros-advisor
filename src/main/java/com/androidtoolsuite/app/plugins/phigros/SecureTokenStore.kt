@@ -30,6 +30,8 @@ internal class SecureTokenStore(context: Context) {
 
     fun selectedId(): String? = preferences.getString(KEY_SELECTED, null)
 
+    fun hasMigrationSecrets(): Boolean = readItems().any { it.has("secret") }
+
     /** Metadata-only profile snapshot for the read-only Migration Bridge. */
     fun migrationProfiles(): JSONArray = JSONArray().also { result ->
         readItems().forEach { item ->
@@ -46,8 +48,10 @@ internal class SecureTokenStore(context: Context) {
 
     /** Plaintext is exposed only to the encrypted streaming export path. */
     fun migrationSecrets(): JSONArray = JSONArray().also { result ->
+        val protectedItems = readItems().filter { it.has("secret") }
+        if (protectedItems.isEmpty()) return@also
         val key = existingSecretKey()
-        readItems().forEach { item ->
+        protectedItems.forEach { item ->
             result.put(
                 JSONObject()
                     .put("id", item.getString("id"))
@@ -93,9 +97,11 @@ internal class SecureTokenStore(context: Context) {
             require(id in byId && plain.put(id, token) == null) { "SessionToken 账号无效或重复" }
             require(TOKEN_PATTERN.matches(token)) { "SessionToken 格式错误" }
         }
-        require(plain.keys == byId.keys) { "SessionToken 与账号档案不完整匹配" }
         val restored = items.map { item ->
-            JSONObject(item.toString()).put("secret", encrypt(checkNotNull(plain[item.getString("id")])))
+            JSONObject(item.toString()).apply {
+                val token = plain[item.getString("id")]
+                if (token == null) remove("secret") else put("secret", encrypt(token))
+            }
         }
         val array = JSONArray()
         restored.forEach(array::put)
@@ -103,6 +109,25 @@ internal class SecureTokenStore(context: Context) {
             "无法保存 SessionToken"
         }
         check(plain.all { (id, token) -> get(id)?.token == token }) { "SessionToken 恢复校验失败" }
+    }
+
+    fun clearMigrationSecrets() {
+        val cleared = readItems().map { item -> JSONObject(item.toString()).apply { remove("secret") } }
+        val array = JSONArray()
+        cleared.forEach(array::put)
+        check(preferences.edit().putString(KEY_PROFILES, array.toString()).commit()) {
+            "无法删除 SessionToken"
+        }
+        deleteSecretKey()
+        check(!hasMigrationSecrets()) { "SessionToken 删除校验失败" }
+    }
+
+    fun clearMigrationProfiles() {
+        check(preferences.edit().remove(KEY_PROFILES).remove(KEY_SELECTED).commit()) {
+            "无法删除账号档案"
+        }
+        deleteSecretKey()
+        check(readItems().isEmpty() && selectedId() == null) { "账号档案删除校验失败" }
     }
 
     fun selected(): StoredToken? {
@@ -211,6 +236,11 @@ internal class SecureTokenStore(context: Context) {
         return requireNotNull(keyStore.getKey(KEY_ALIAS, null) as? SecretKey) {
             "Phigros SessionToken Keystore 密钥不存在"
         }
+    }
+
+    private fun deleteSecretKey() {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        if (keyStore.containsAlias(KEY_ALIAS)) keyStore.deleteEntry(KEY_ALIAS)
     }
 
     private fun secretKey(): SecretKey {
