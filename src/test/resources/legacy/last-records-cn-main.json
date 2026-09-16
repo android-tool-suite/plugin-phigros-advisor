@@ -1,0 +1,24 @@
+[
+  {
+    "id": "fixture.song.one",
+    "title": "Fixture One",
+    "level": "AT",
+    "levelIndex": 3,
+    "constant": 15.9,
+    "score": 1000000,
+    "accuracy": 100.0,
+    "fc": true,
+    "illustrationUrl": "https://example.invalid/one.png"
+  },
+  {
+    "id": "fixture.song.two",
+    "title": "Fixture Two",
+    "level": "IN",
+    "levelIndex": 2,
+    "constant": 15.4,
+    "score": 980000,
+    "accuracy": 98.0,
+    "fc": true,
+    "illustrationUrl": "https://example.invalid/two.png"
+  }
+]

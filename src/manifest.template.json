@@ -1,0 +1,166 @@
+{
+  "$schema": "https://android-tool-suite.test/contracts/manifest-v3.schema.json",
+  "format": "ats-plugin",
+  "formatVersion": 3,
+  "plugin": {
+    "id": "phigros_advisor",
+    "title": "Phigros Data Studio",
+    "description": "安全管理账号并查看云存档、RKS、B30、推分历史与成绩图片。",
+    "version": "@VERSION_NAME@",
+    "versionCode": @VERSION_CODE@,
+    "minHostVersionCode": @MIN_HOST_VERSION_CODE@,
+    "minAndroidApi": 26,
+    "publisher": "android_tool_suite",
+    "kind": "tool"
+  },
+  "platforms": ["android"],
+  "runtime": {
+    "ui": [{ "id": "main", "type": "declarative", "entry": "ui/main.json" }],
+    "background": [
+      {
+        "id": "phigros-worker",
+        "type": "javascript-worker",
+        "entry": "workers/phigros.js",
+        "required": true,
+        "timeoutMs": 60000,
+        "maxHeapBytes": 33554432
+      }
+    ],
+    "providers": []
+  },
+  "requires": {
+    "plugins": [],
+    "capabilities": [
+      { "id": "app", "version": "^1.0.0", "optional": false, "scopes": {} },
+      { "id": "storage", "version": "^1.0.0", "optional": false, "scopes": {} },
+      { "id": "scheduler", "version": "^1.0.0", "optional": false, "scopes": {} },
+      {
+        "id": "network.request",
+        "version": "^1.0.0",
+        "optional": false,
+        "scopes": {
+          "hosts": [
+            "accounts.tapapis.cn",
+            "open.tapapis.cn",
+            "rak3ffdi.cloud.tds1.tapapis.cn",
+            "accounts.tapapis.com",
+            "open.tapapis.com",
+            "kviehlel.cloud.ap-sg.tapapis.com",
+            "raw.githubusercontent.com",
+            "*.tapfiles.cn",
+            "*.amazonaws.com",
+            "*.tapapis.cn",
+            "*.tapapis.com"
+          ],
+          "methods": ["GET", "POST"],
+          "headers": ["authorization"],
+          "maxResponseBytes": 8388608,
+          "allowBackground": true
+        }
+      },
+      {
+        "id": "file.export",
+        "version": "^1.0.0",
+        "optional": false,
+        "scopes": { "mimeTypes": ["image/png"], "maxBytes": 33554432 }
+      },
+      {
+        "id": "phigros.summary",
+        "version": "^1.0.0",
+        "optional": false,
+        "scopes": {}
+      }
+    ]
+  },
+  "provides": {
+    "capabilities": [
+      {
+        "id": "phigros.summary",
+        "version": "1.0.0",
+        "workerEntry": "phigros-worker",
+        "methods": ["phigros.summary.get"]
+      }
+    ]
+  },
+  "contributes": {
+    "tools": [{ "id": "main", "uiEntry": "main" }],
+    "homeWidgets": [
+      {
+        "id": "rks",
+        "title": "Phigros RKS",
+        "template": "metric",
+        "dataSource": "phigros.summary.get",
+        "sizes": ["2x2", "4x2"]
+      }
+    ]
+  },
+  "datasets": [
+    {
+      "id": "profiles",
+      "title": "账号档案与当前选择",
+      "category": "settings",
+      "formatVersion": 1,
+      "sensitive": false,
+      "mediaType": "application/json",
+      "validator": "json",
+      "maxBytes": 262144,
+      "restoreModes": ["replace"],
+      "dependsOn": []
+    },
+    {
+      "id": "analysis-data",
+      "title": "成绩缓存与分析历史",
+      "category": "data",
+      "formatVersion": 1,
+      "sensitive": false,
+      "mediaType": "application/zip",
+      "validator": "zip",
+      "maxBytes": 536870912,
+      "restoreModes": ["replace"],
+      "dependsOn": ["profiles"]
+    },
+    {
+      "id": "session-tokens",
+      "title": "SessionToken",
+      "category": "secret",
+      "formatVersion": 1,
+      "sensitive": true,
+      "mediaType": "application/json",
+      "validator": "json",
+      "maxBytes": 262144,
+      "restoreModes": ["replace"],
+      "dependsOn": ["profiles"]
+    },
+    {
+      "id": "song-catalog",
+      "title": "曲库缓存",
+      "category": "cache",
+      "formatVersion": 1,
+      "sensitive": false,
+      "mediaType": "text/tab-separated-values",
+      "validator": "opaque",
+      "maxBytes": 16777216,
+      "restoreModes": ["replace"],
+      "dependsOn": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "sync-selected",
+      "backgroundEntry": "phigros-worker",
+      "triggers": [
+        { "type": "manual" },
+        { "type": "app-foreground" },
+        { "type": "periodic", "intervalMinutes": 60 }
+      ],
+      "constraints": {
+        "network": "connected",
+        "charging": false,
+        "batteryNotLow": true,
+        "storageNotLow": true
+      },
+      "concurrency": { "policy": "forbid" },
+      "retry": { "maxAttempts": 3, "initialBackoffMs": 30000 }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Phigros Data Studio
 
-`Phigros Data Studio` 是 Android Tool Suite 的外部插件。2.0 版已经完全重写：不再使用单文件 Java 页面，而是拆分为安全令牌存储、TapTap 登录、LeanCloud 云存档、二进制存档解析、RKS 计算、历史记录、图片渲染和 Compose UI 等模块。
+`Phigros Data Studio` 是 Android Tool Suite 的普通 format v3 插件。3.0 使用声明式 WebView UI 和受限 JavaScript Worker，不包含 `plugin.apk`，网络、文件保存、后台任务与宿主存储全部经过 Capability Router。
 
 ## 功能
 
@@ -25,7 +25,7 @@
   - 生成双列 B30 长图，包含 P3/B27、曲绘、成绩、ACC、推分 ACC 与单曲 RKS。
   - 生成个人信息效果图，包含 RKS、课题模式、Data、难度统计和 Top Records。
   - 图片署名自动使用当前插件版本，不使用参考项目的作者署名。
-  - 生成后在独立大图弹窗中预览；点击“保存到相册”后写入系统相册的 `Pictures/Phigros Data Studio`。
+  - 生成后在独立大图弹窗中预览；点击“保存图片”后通过系统文件保存器选择位置，取消保存不会影响成绩数据。
 - 推分时间线
   - 每次同步后比较上一次本地成绩，记录 RKS、课题模式和谱面提升。
   - 标记“新成绩”“进入 B27”“进入 P3”和“成绩提升”。
@@ -36,13 +36,15 @@
   - 按整数定数段分组并在组内按实际定数降序排列。
   - 曲库会缓存到本机，可在插件中手动更新。
 
+RKS 列表与定数表每页显示 40 项，搜索和难度筛选作用于完整数据；推分 ACC 在显示相应成绩时计算并缓存。
+
 ## 使用
 
 1. 在“令牌”页选择国服或国际服。
 2. 使用 TapTap 扫码，或手动输入 25 位 SessionToken 并保存。
 3. 返回“总览”点击“同步云存档”。
 4. 在“RKS 列表”“B30”“时间线”“定数表”之间切换。
-5. 在“总览”或“B30”页生成图片，确认预览后点击“保存到相册”。
+5. 在“总览”或“B30”页生成图片，确认预览后点击“保存图片”，选择文件保存位置。
 
 历史记录从本插件首次成功同步后开始产生。每个历史节点使用该次同步时缓存的曲库定数，游戏版本变更后不会自动追溯改写旧节点。
 
@@ -66,8 +68,8 @@ ACC >= 55% => 定数 × ((ACC - 55) / 45)²
 ## 隐私和安全
 
 - SessionToken 只发送给 TapTap/Phigros 使用的官方账户与 LeanCloud 接口，不会提交到参考查分站。
-- SessionToken 使用 Android Keystore 生成的不可导出 AES-GCM 密钥加密后存入私有 SharedPreferences。
-- 成绩快照、推分时间线和曲库缓存保存在宿主应用私有目录。
+- SessionToken 使用宿主 SecretStore 的 Android Keystore AES-GCM 加密，并同步保留可备份的敏感 Dataset。
+- 成绩快照、推分时间线和曲库缓存保存在宿主按插件隔离、原子切换的 Dataset generation。
 - 图片曲绘按需从公开曲绘仓库读取并缓存；生成图片不包含 SessionToken。
 - 删除令牌不会自动删除该令牌对应的历史文件，以避免误删；卸载宿主应用会清除私有数据。
 
@@ -86,42 +88,23 @@ SessionToken 等同于账号凭据。不要截图、上传或发送给不受信�
 ## 主要模块
 
 ```text
-PhigrosAdvisorPlugin.kt   插件生命周期、后台任务和状态协调
-PhigrosAdvisorUi.kt       Compose 多页界面
-PhigrosModels.kt          存档、成绩、令牌、时间线和 UI 状态模型
-SecureTokenStore.kt       Android Keystore + AES-GCM 令牌管理
-PhigrosNetwork.kt         TapTap、LeanCloud 与 HTTP 客户端
-PhigrosSaveParser.kt      ZIP/AES 与 Phigros 二进制存档解析
-PhigrosSaveCache.kt       按令牌隔离的完整存档和推分结果缓存
-SongCatalogRepository.kt  曲库下载、缓存和定数解析
-PhigrosRks.kt             P3+B27、Bn 与推分 ACC
-PhigrosHistoryStore.kt    按令牌隔离的本地推分时间线
-PhigrosImageRenderer.kt   B30 与个人信息 PNG 生成
-QrBitmap.kt               TapTap 登录二维码编码
+src/manifest.template.json  format v3、Capability、Dataset、主页组件和任务清单
+src/web/app.js              多页 UI、迁移数据、同步、筛选、历史和 PNG 导出
+src/web/login.js            TapTap 设备登录、MAC/HMAC 与 LeanCloud 换取令牌
+src/web/save-parser.js      ZIP/AES 与 Phigros 二进制存档解析
+src/web/rks.js              P3+B27、Bn 与推分 ACC
+src/web/zip.js              有界 ZIP 校验、读取与 Dataset 输出
+src/workers/phigros.js      主页摘要和后台云存档获取
+src/test-js/                迁移、RKS、ZIP、存档、登录与 Worker 合同测试
 ```
 
 ## 构建与测试
 
-本仓库只包含 Phigros Data Studio，一个插件对应一个独立 Git 仓库。它不直接引用主体应用的 Gradle project，只消费版本化的 `com.androidtoolsuite:plugin-sdk` AAR。
-
-首次本地构建前，在主体应用仓库发布 SDK：
-
-```powershell
-gradle -p ..\..\app :plugin-sdk:publishToMavenLocal
-```
-
-然后执行测试并收集插件包：
+本仓库是无需 Android SDK 和插件 SDK 的纯打包工程。Node.js 运行 Web 合同测试并锁定二维码依赖，Gradle 生成确定性 format v3 包：
 
 ```powershell
 gradle testDebugUnitTest
 gradle clean collectArtifacts
-```
-
-也可以直接消费主体仓库内的临时 Maven 仓库：
-
-```powershell
-gradle -p ..\..\app :plugin-sdk:publishReleasePublicationToPluginSdkRepository
-gradle -PatsSdkRepository=..\..\app\plugin-sdk\build\repository clean collectArtifacts
 ```
 
 插件包输出：
@@ -137,7 +120,7 @@ artifacts/phigros-advisor.atsplugin
 - 两种发布都会生成带通道信息的元数据和校验和，并通过 GitHub App 短时令牌发送事件通知插件索引更新。
 - `data-compatibility.json` 声明当前构建可能写入的数据格式及可读取范围；修改令牌、缓存或历史文件格式时必须同步递增并评估兼容范围，宿主据此决定是否允许历史版本降级。
 
-最低 Android 版本为 7.0（API 24），目标 SDK 为 35。二维码编码使用 ZXing Core 3.5.3。
+插件声明最低 Android 8.0（API 26），因为主页组件和后台同步依赖 JavaScriptSandbox；宿主本身仍支持 API 24。二维码使用锁定的 `qrcode-generator 2.0.4`，MIT 许可证随包分发。
 
 ## 已知限制
 

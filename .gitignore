@@ -2,6 +2,7 @@
 /.kotlin/
 /build/
 /artifacts/
+/node_modules/
 /local.properties
 *.iml
 .idea/

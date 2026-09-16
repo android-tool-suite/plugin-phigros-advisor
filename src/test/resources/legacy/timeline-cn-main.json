@@ -1,0 +1,31 @@
+[
+  {
+    "timestamp": 1788074096000,
+    "saveTimestamp": "2026-08-30T12:34:56.000Z",
+    "oldRks": 1.9401,
+    "newRks": 1.9537606995884775,
+    "challengeModeRank": 523,
+    "changes": [
+      {
+        "id": "fixture.song.two",
+        "title": "Fixture Two",
+        "level": "IN",
+        "oldScore": 980000,
+        "newScore": 982500,
+        "oldAccuracy": 98.0,
+        "newAccuracy": 98.25,
+        "tag": "成绩提升"
+      },
+      {
+        "id": "fixture.song.three",
+        "title": "Fixture Three",
+        "level": "IN",
+        "oldScore": null,
+        "newScore": 965000,
+        "oldAccuracy": null,
+        "newAccuracy": 96.5,
+        "tag": "新成绩"
+      }
+    ]
+  }
+]

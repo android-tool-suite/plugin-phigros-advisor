@@ -1,0 +1,8 @@
+{
+  "name": "android-tool-suite-plugin-phigros-advisor",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "qrcode-generator": "2.0.4"
+  }
+}

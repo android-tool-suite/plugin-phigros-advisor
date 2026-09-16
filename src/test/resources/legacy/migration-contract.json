@@ -1,0 +1,30 @@
+{
+  "pluginId": "phigros_advisor",
+  "sourceFormatVersion": 2,
+  "datasets": [
+    { "id": "profiles", "formatVersion": 1, "category": "settings", "sensitive": false },
+    { "id": "analysis-data", "formatVersion": 1, "category": "data", "sensitive": false },
+    { "id": "session-tokens", "formatVersion": 1, "category": "secret", "sensitive": true },
+    { "id": "song-catalog", "formatVersion": 1, "category": "cache", "sensitive": false }
+  ],
+  "analysisFiles": [
+    "saves/save-cn-main.json",
+    "last-records-cn-main.json",
+    "timeline-cn-main.json"
+  ],
+  "pages": ["总览", "RKS 列表", "B30", "时间线", "定数表", "令牌"],
+  "imageOutputs": [
+    {
+      "kind": "b30",
+      "fileNamePrefix": "Phigros-B30-",
+      "mimeType": "image/png",
+      "requiredSections": ["player", "rks", "p3", "b27", "records", "signature"]
+    },
+    {
+      "kind": "profile",
+      "fileNamePrefix": "Phigros-Profile-",
+      "mimeType": "image/png",
+      "requiredSections": ["player", "rks", "challenge", "data", "statistics", "topRecords", "signature"]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Phigros Data Studio</title>
+  <link rel="stylesheet" href="/__ats__/theme.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="filters.css">
+  <script src="vendor/qrcode.js" defer></script>
+  <script src="runtime.js" defer></script>
+  <script src="zip.js" defer></script>
+  <script src="save-parser.js" defer></script>
+  <script src="login.js" defer></script>
+  <script src="rks.js" defer></script>
+  <script src="presentation.js" defer></script><script src="build-version.js" defer></script><script src="images.js" defer></script><script src="feedback.js" defer></script><script src="tab-pager.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<main>
+  <header class="section-header">
+    <div><p id="subtitle">正在读取本地数据…</p></div>
+    <button id="refresh" class="secondary" aria-label="刷新本地数据">刷新</button>
+  </header>
+  <nav id="tabs" class="tabs" aria-label="页面"></nav>
+  <div id="progress" class="progress"><span></span></div>
+  <section role="status" aria-live="polite" id="message" class="notice" hidden></section>
+  <section id="content"></section>
+</main>
+<dialog id="token-dialog">
+  <form method="dialog" id="token-form">
+    <h2>添加 SessionToken</h2>
+    <label>备注<input id="token-label" maxlength="32" required></label>
+    <label>服务器<select id="token-server"><option value="CN">国服</option><option value="GLOBAL">国际服</option></select></label>
+    <label>SessionToken<input id="token-value" type="password" maxlength="25" minlength="25" autocomplete="off" required></label>
+    <p class="supporting">凭据写入宿主加密存储，页面不会再次显示明文。</p>
+    <div class="dialog-actions"><button value="cancel" formnovalidate class="secondary">取消</button><button value="default" id="token-save">保存</button></div>
+  </form>
+</dialog>
+<dialog id="rename-dialog"><form method="dialog" id="rename-form"><h2>修改备注</h2><label>备注<input id="rename-value" maxlength="32" required></label><div class="actions"><button value="cancel" formnovalidate class="secondary">取消</button><button value="save">保存</button></div></form></dialog>
+<dialog id="image-dialog"><div class="preview-actions"><h2>图片预览</h2><p id="image-status" role="status"></p><div class="actions"><button id="save-image">保存图片</button><button id="close-image" class="secondary">关闭</button></div></div><img id="image-preview" alt="Phigros 成绩图"></dialog>
+</body>
+</html>
