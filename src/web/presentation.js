@@ -7,7 +7,7 @@
       if (parts.length < 9) continue;
       const id = parts[0].trim().replace(/\.0$/, '');
       const constants = levels.map((_, index) => Number(parts[8 + index]) || 0);
-      if (id && constants.some(value => value > 0) && !songs.has(id)) songs.set(id, {id, title: parts[1] || id, constants});
+      if (id && constants.some(value => value > 0) && !songs.has(id)) songs.set(id, {id, title: parts[1] || id, composer: parts[2] || '', constants});
     }
     return [...songs.values()];
   }
@@ -21,6 +21,21 @@
   function timeline(events, days, now = Date.now()) {
     return events.filter(event => meaningfulEvent(event) && (!days || Number(event.timestamp) >= now - days * 86400000))
       .slice().sort((a, b) => b.timestamp - a.timestamp);
+  }
+  function rksTrend(events, days, now = Date.now()) {
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    today.setDate(today.getDate() - Math.max(0, days - 1));
+    const cutoff = days ? today.getTime() : -Infinity;
+    const unique = new Map();
+    for (const event of events || []) {
+      const time = Number(event.timestamp) || Date.parse(event.saveTimestamp || '');
+      const value = event.newRks == null ? NaN : Number(event.newRks);
+      if (!Number.isFinite(time) || !Number.isFinite(value) || value < 0 || time < cutoff || time > now || unique.has(time)) continue;
+      unique.set(time, {time, value});
+    }
+    const points = [...unique.values()].sort((a, b) => a.time - b.time);
+    return {points, start: days ? cutoff : points[0]?.time ?? now, end: now};
   }
   function meaningfulEvent(event) {
     return event.oldRks == null || (event.changes || []).length > 0 || Math.abs(Number(event.newRks) - Number(event.oldRks)) > 1e-8 ||
@@ -54,5 +69,5 @@
       challengeModeRank: next.profile.challengeModeRank, changes};
   }
   const grade = record => record.score >= 1000000 ? 'Phi' : record.fc ? 'FC' : record.score >= 960000 ? 'V' : record.score >= 920000 ? 'S' : record.score >= 880000 ? 'A' : record.score >= 820000 ? 'B' : record.score >= 700000 ? 'C' : 'F';
-  window.phigrosPresentation = {catalog, charts, timeline, historyEvent, appendHistory, meaningfulEvent, grade};
+  window.phigrosPresentation = {catalog, charts, timeline, rksTrend, historyEvent, appendHistory, meaningfulEvent, grade};
 })();

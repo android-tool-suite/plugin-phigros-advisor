@@ -29,6 +29,8 @@ main>header{min-height:44px}main>header p{font-size:var(--ats-type-body-small-si
 #tabs{gap:var(--ats-space-xs);border-bottom:1px solid var(--ats-outline-variant);padding:0;scrollbar-width:none}
 #tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;min-height:48px;padding:var(--ats-space-md);background:transparent;color:var(--ats-on-surface-variant)}
 #tabs button.active{border-bottom-color:var(--ats-primary);color:var(--ats-primary);background:transparent}
+#tabs{display:flex;width:100%;gap:0;overflow:visible}
+#tabs>button{flex:1 1 0;min-width:0;padding-inline:var(--ats-space-xs);text-align:center}
 .card{padding:var(--ats-space-lg) var(--ats-space-xl);gap:var(--ats-space-sm)}
 .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--ats-space-sm);border-top:1px solid var(--ats-outline-variant);padding-top:var(--ats-space-md)}
 .metric-grid>div{display:grid;gap:var(--ats-space-xs);text-align:center}.metric-grid strong{font-size:var(--ats-type-title-medium-size)}
@@ -86,3 +88,34 @@ main.pager-layout>header,main.pager-layout>#accounts,main.pager-layout>#tabs,mai
 .snackbar,.snackbar.success,.snackbar.danger{background:var(--ats-on-surface);color:var(--ats-surface);border:0;box-shadow:0 3px 12px #0002}
 
 .tab-page[aria-hidden="true"]{pointer-events:none}
+
+/* Shared host tokens; navigation and chart state stay local to the current account. */
+.text-button{background:transparent;color:var(--ats-primary);padding:var(--ats-space-sm) var(--ats-space-md)}
+.scores-tabs,.trend-ranges,.level-filters{display:flex;gap:var(--ats-space-sm);min-width:0}
+.scores-tabs{padding:var(--ats-space-xs);background:var(--ats-surface-container);border-radius:var(--ats-inner-radius)}
+.scores-tabs button{flex:1;border:0;color:var(--ats-on-surface-variant)}
+.scores-tabs button[aria-pressed=true]{background:var(--ats-surface);color:var(--ats-primary)}
+.level-filters{flex-wrap:wrap}.level-filters button{min-height:44px;padding:var(--ats-space-sm) var(--ats-space-lg);border-radius:var(--ats-chip-radius)}
+.level-filters button[aria-pressed=true],.trend-ranges button[aria-pressed=true]{background:var(--ats-secondary-container);color:var(--ats-on-secondary-container);border-color:transparent}
+.catalog-search{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:var(--ats-space-md)}
+.record-search-label{min-width:0;display:grid;gap:var(--ats-space-xs)}
+.catalog-search button{min-height:52px}.catalog-group-heading:not(:first-child){margin-top:var(--ats-space-sm)}
+.catalog-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;padding:13px;border-radius:var(--ats-inner-radius);background:var(--ats-surface-low)}
+.catalog-song{min-width:0;display:grid;gap:2px;padding-right:var(--ats-space-sm)}
+.catalog-song>*{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.catalog-constant{font-variant-numeric:tabular-nums}
+.difficulty-table{width:100%;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.difficulty-table th,.difficulty-table td{text-align:center;padding:var(--ats-space-sm) 2px;font-weight:var(--ats-type-body-medium-weight)}
+.difficulty-table th:first-child{text-align:left;width:44px;font-size:var(--ats-type-body-small-size);color:var(--ats-on-surface-variant)}
+.difficulty-table thead,.difficulty-table tbody tr+tr{border-bottom:1px solid var(--ats-outline-variant)}
+.trend-ranges{gap:var(--ats-space-xs)}.trend-ranges button{flex:1;min-width:0;min-height:44px;padding:var(--ats-space-sm) 4px;border-radius:var(--ats-chip-radius);font-size:var(--ats-type-label-medium-size);white-space:nowrap}
+.trend-plot{position:relative;width:100%;height:198px;min-width:0}.trend-plot svg{display:block;width:100%;height:198px;overflow:visible}
+.trend-plot text{font:11px var(--ats-font-family);fill:var(--ats-on-surface-variant)}
+.trend-grid{stroke:var(--ats-outline-variant);stroke-width:1}.trend-line{fill:none;stroke:var(--ats-primary);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.trend-dot{fill:var(--ats-primary)}.trend-selected{fill:var(--ats-primary);stroke:var(--ats-surface-low);stroke-width:3}
+.trend-guide{stroke:var(--ats-on-surface-variant);stroke-width:1;stroke-dasharray:3 4;opacity:.55}
+.trend-plot .trend-hit{position:absolute;left:64px;right:12px;top:24px;height:142px;min-height:0;padding:0;border:0;border-radius:0;background:transparent}
+.trend-detail{display:flex;justify-content:space-between;align-items:baseline;gap:var(--ats-space-sm);flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.trend-detail span{font-size:var(--ats-type-body-small-size)}.trend-empty{height:100%;place-content:center}
+#accounts-dialog{width:min(600px,calc(100% - 24px))}#accounts-content{display:grid;gap:var(--ats-space-lg);padding-top:var(--ats-space-lg)}
+#accounts-dialog>.section-header{position:sticky;top:0;background:var(--ats-surface);z-index:1;padding-bottom:var(--ats-space-sm)}
+.hero .primary-actions{margin-top:var(--ats-space-sm)}.hero .primary-actions button{min-width:0;padding-inline:var(--ats-space-md)}
