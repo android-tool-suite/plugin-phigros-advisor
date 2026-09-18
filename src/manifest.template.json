@@ -149,9 +149,7 @@
       "id": "sync-selected",
       "backgroundEntry": "phigros-worker",
       "triggers": [
-        { "type": "manual" },
-        { "type": "app-foreground" },
-        { "type": "periodic", "intervalMinutes": 60 }
+        { "type": "manual" }
       ],
       "constraints": {
         "network": "connected",

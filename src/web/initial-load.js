@@ -1,14 +1,16 @@
-// Publish the small account summary before requesting the larger optional page datasets.
+// Read only the datasets required by the selected page. Failed reads remain retryable.
 (function (root) {
-  async function loadLocal(read, showProfiles, showDetails) {
-    const profiles = await read('profiles', 262144);
-    await showProfiles(profiles);
-    // Give the first content frame a chance to paint before parsing the full analysis.
-    await new Promise(resolve => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => setTimeout(resolve, 0)) : setTimeout(resolve, 0));
-    const [tokens, catalog, analysis] = await Promise.all([
-      read('session-tokens', 262144), read('song-catalog', 16777216), read('analysis-data', 64 * 1024 * 1024)
-    ]);
-    await showDetails({tokens, catalog, analysis});
+  function createLoader(read, apply) {
+    const pending = new Map(), loaded = new Set();
+    const limits = {'profiles':262144, 'session-tokens':262144, 'song-catalog':16777216, 'analysis-data':64*1024*1024};
+    function ensure(id) {
+      if (loaded.has(id)) return Promise.resolve();
+      if (!pending.has(id)) pending.set(id, Promise.resolve().then(() => read(id, limits[id]))
+        .then(value => apply(id, value)).then(() => { loaded.add(id); })
+        .finally(() => pending.delete(id)));
+      return pending.get(id);
+    }
+    return {ensure, has:id=>loaded.has(id), page:page=>ensure(page==='定数表'?'song-catalog':'analysis-data')};
   }
-  root.phigrosInitialLoad = {loadLocal};
+  root.phigrosInitialLoad = {createLoader};
 })(globalThis);

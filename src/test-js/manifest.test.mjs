@@ -13,6 +13,7 @@ assert.equal(manifest.datasets.find(item=>item.id==='session-tokens').sensitive,
 assert.ok(new Set(manifest.requires.capabilities.map(item=>item.id)).isSupersetOf(new Set(['storage','network.request','file.export','scheduler','phigros.summary'])));
 assert.equal(manifest.runtime.background.length,1);
 assert.equal(manifest.tasks.length,1);
+assert.deepEqual(manifest.tasks[0].triggers,[{type:'manual'}],'opening the app and periodic wakeups must not start cloud sync');
 
 const contract=JSON.parse(readFileSync(new URL('test/resources/legacy/migration-contract.json',root),'utf8'));
 assert.deepEqual(new Set(contract.datasets.map(item=>item.id)),new Set(manifest.datasets.map(item=>item.id)));

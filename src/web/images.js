@@ -24,7 +24,8 @@
       text(`${record.level} ${Number(record.constant).toFixed(1)} · ${phigrosPresentation.grade(record)}`, titleX, top + 68, 23, '#9ed8bd', titleWidth);
       text(`${Number(record.score).toLocaleString()} · ${Number(record.accuracy).toFixed(4)}%`, x + 12, top + 115, 23, '#d7ffe8', 460);
       const identity = phigrosRks.identity(record);
-      const target = targets[identity] || (targets[identity] = phigrosRks.pushTarget(record, save.records, snapshot));
+      const target = targets[identity];
+      if (!target) throw new Error('推分缓存尚未就绪');
       const push = target.targetAccuracy == null ? (record.accuracy >= 100 ? '已达 Phi' : '无法推分') : `推分 ${target.targetAccuracy.toFixed(4)}%`;
       text(`${record.rks.toFixed(4)} RKS · ${push}`, x + 12, top + 147, 21, '#9ed8bd', 460);
     }

@@ -33,7 +33,7 @@
     });
   }
 
-  const fromBase64 = value => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+  const fromBase64 = value => { if(typeof Uint8Array.fromBase64==='function')return Uint8Array.fromBase64(value);const raw=atob(value),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return bytes; };
   const toBase64 = bytes => {
     let result = '';
     for (let offset = 0; offset < bytes.length; offset += 0x8000) {
@@ -41,24 +41,29 @@
     }
     return btoa(result);
   };
-  async function readDataset(datasetId, maxBytes) {
-    const opened = await call('storage.dataset.openRead', {datasetId});
-    if (!opened.found) return null;
-    const chunks = [];
-    let offset = 0;
-    try {
-      while (true) {
-        const part = await call('storage.dataset.read', {handle:opened.handle,offset,maxBytes:Math.min(131072,maxBytes-offset)});
-        const bytes = fromBase64(part.bytes);
-        chunks.push(bytes); offset += bytes.length;
-        if (offset > maxBytes) throw new Error('本地数据超过大小限制');
-        if (part.eof) break;
+  async function readHandle(opened,maxBytes,reader,closer){
+    if(!opened.found)return null;
+    try{
+      const size=opened.size;
+      if(!Number.isSafeInteger(size)||size<0)throw new Error('数据长度无效');
+      if(size>maxBytes)throw new Error('数据超过大小限制');
+      const output=new Uint8Array(size),chunkSize=131072;
+      for(let offset=0;offset<size;offset+=chunkSize*2){
+        const offsets=[offset];if(offset+chunkSize<size)offsets.push(offset+chunkSize);
+        // Drain both requests before closing a handle, even when one response fails.
+        const batch=await Promise.allSettled(offsets.map(async position=>{
+          const length=Math.min(chunkSize,size-position);
+          const part=await call(reader,{handle:opened.handle,offset:position,maxBytes:length});
+          const bytes=fromBase64(part.bytes);
+          if(bytes.length!==length||(part.offset!=null&&part.offset!==position)||part.eof!==(position+length===size))throw new Error('数据分块长度或位置不匹配');
+          output.set(bytes,position);
+        }));
+        const failure=batch.find(item=>item.status==='rejected');if(failure)throw failure.reason;
       }
-    } finally { await call('storage.dataset.abort', {handle:opened.handle}).catch(() => {}); }
-    const output = new Uint8Array(offset);
-    let cursor = 0; for (const chunk of chunks) { output.set(chunk,cursor); cursor += chunk.length; }
-    return output;
+      return output;
+    }finally{await call(closer,{handle:opened.handle}).catch(()=>{});}
   }
+  async function readDataset(datasetId,maxBytes=64*1024*1024){return readHandle(await call('storage.dataset.openRead',{datasetId}),maxBytes,'storage.dataset.read','storage.dataset.abort');}
   async function writeDataset(datasetId, bytes) {
     const opened = await call('storage.dataset.openWrite', {datasetId});
     try {
@@ -80,9 +85,7 @@
       return await call('storage.blob.close',{handle:opened.handle});
     } catch (error) { await call('storage.blob.close',{handle:opened.handle}).catch(()=>{}); throw error; }
   }
-  async function readBlob(id,maxBytes=64*1024*1024) {
-    const opened=await call('storage.blob.openRead',{id});if(!opened.found)return null;const chunks=[];let offset=0;try{if(opened.size>maxBytes)throw new Error('Blob 超过大小限制');while(true){const part=await call('storage.blob.read',{handle:opened.handle,offset,maxBytes:131072});const bytes=fromBase64(part.bytes);chunks.push(bytes);offset+=bytes.length;if(part.eof)break;}}finally{await call('storage.blob.close',{handle:opened.handle}).catch(()=>{});}const output=new Uint8Array(offset);let cursor=0;for(const chunk of chunks){output.set(chunk,cursor);cursor+=chunk.length;}return output;
-  }
+  async function readBlob(id,maxBytes=64*1024*1024){return readHandle(await call('storage.blob.openRead',{id}),maxBytes,'storage.blob.read','storage.blob.close');}
   async function request(url,{method='GET',headers={},body=null,deadlineMs=60000}={}) {
     const payload={url,method,headers};if(body)payload.bodyBase64=toBase64(body instanceof Uint8Array?body:new TextEncoder().encode(String(body)));
     const response=await call('network.request',payload,deadlineMs),blobId=response.bodyBlob?.id||response.blobId;
