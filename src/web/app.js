@@ -28,15 +28,19 @@
   }
   const message=createFeedback(ui.message);
   async function load(){setLoading(true);message('');try{
-    const [profiles,tokens,catalog,analysis]=await Promise.all([ats.readDataset('profiles',262144),ats.readDataset('session-tokens',262144),ats.readDataset('song-catalog',16777216),ats.readDataset('analysis-data',64*1024*1024)]);
-    state.profiles=profiles?JSON.parse(text(profiles)):{formatVersion:1,profiles:[],selectedProfile:null,widget:{}};
-    state.tokens=tokens?JSON.parse(text(tokens)):{formatVersion:1,tokens:[]};
-    state.catalog=catalog?parseCatalog(text(catalog)):[];state.analysisFiles=new Map();
-    state.save=null;state.snapshot=null;state.pushTargets={};state.timeline=[];
-    if(analysis) await loadAnalysis(analysis);
+    await phigrosInitialLoad.loadLocal(ats.readDataset, profiles => {
+      state.profiles=profiles?JSON.parse(text(profiles)):{formatVersion:1,profiles:[],selectedProfile:null,widget:{}};
+      render();
+    }, async ({tokens,catalog,analysis}) => {
+      state.tokens=tokens?JSON.parse(text(tokens)):{formatVersion:1,tokens:[]};
+      state.catalog=catalog?parseCatalog(text(catalog)):[];
+      if(analysis) await loadAnalysis(analysis);
+      else {state.analysisFiles=new Map();state.save=null;state.snapshot=null;state.pushTargets={};state.timeline=[];}
+      render();
+    });
     for(const item of state.tokens.tokens||[]){if(item.id&&item.token)await ats.call('storage.secret.set',{datasetId:'session-tokens',key:`token:${item.id}`,value:item.token});}
     await consumePendingSync();
-    ui.subtitle.textContent=state.profiles.profiles.length?`${state.profiles.profiles.length} 个账号 · 数据保存在本机`:'尚未添加账号';render();
+    ui.subtitle.textContent=state.profiles.profiles.length?`${state.profiles.profiles.length} 个账号 · 数据保存在本机`:'尚未添加账号';render();await pager.restore();
   }catch(error){message(error.message||'读取本地数据失败','danger');render();}finally{setLoading(false);}}
   function parseCatalog(raw){return phigrosPresentation.catalog(raw);}
   async function loadAnalysis(bytes){const files=await phigrosZip.read(bytes);state.analysisFiles=files;const scope=safeScope(state.profiles.selectedProfile);if(!scope)return;const save=files.get(`saves/save-${scope}.json`);const timeline=files.get(`timeline-${scope}.json`);if(save){state.save=JSON.parse(text(save));state.snapshot=phigrosRks.calculate(state.save.records||[]);state.pushTargets={};}if(timeline)state.timeline=JSON.parse(text(timeline));}
@@ -65,6 +69,14 @@
     trendViews.get(ui.content)?.dispose();trendViews.delete(ui.content);
     const profile=selected(),page=state.page==='成绩'?state.scoresPage:state.page;
     if(page==='总览'){
+      if (!state.save && state.loading && state.profiles.widget && Number(state.profiles.widget.count)>0) {
+        const widget=state.profiles.widget;
+        let rks=Number(widget.rks);
+        if(!Number.isFinite(rks) && widget.rksBits!=null){const bytes=new ArrayBuffer(8),view=new DataView(bytes);view.setBigUint64(0,BigInt(widget.rksBits));rks=view.getFloat64(0);}
+        ui.content.innerHTML=`<article class="card hero"><small>${escapeHtml(widget.player||profile?.label||'Phigros')}</small><div class="big">${Number.isFinite(rks)?rks.toFixed(4):'—'} <span>RKS</span></div><p>${Number(widget.count)} 条成绩</p><small>上次同步摘要 · 正在补全成绩详情</small></article>`;
+        return;
+      }
+
       const data=state.save?.profile||{};
       ui.content.innerHTML=state.save?`<article class="card hero player-summary"><h2>${escapeHtml(data.playerId||profile?.label||'当前账号')}</h2>${data.selfIntro?`<p class="self-intro">${escapeHtml(data.selfIntro)}</p>`:''}<div class="row"><div><small>本地计算 RKS</small><strong class="rks-value">${state.snapshot.overall.toFixed(4)}</strong></div><div class="player-meta"><strong>课题模式 ${Math.floor((data.challengeModeRank||0)/100)} / ${(data.challengeModeRank||0)%100}</strong><p>${formatMoney(data.money||[])}</p></div></div>${data.officialRks>0&&Math.abs(data.officialRks-state.snapshot.overall)>.001?`<small>官方存档 RKS ${Number(data.officialRks).toFixed(4)} · 本地计算差 ${(state.snapshot.overall-data.officialRks).toFixed(4)}</small>`:''}<small>存档时间 ${escapeHtml(String(data.saveUpdatedAt||'—').slice(0,19).replace('T',' '))} · ${profile?.server==='GLOBAL'?'国际服':'国服'}</small><div class="actions primary-actions"><button id="sync">同步云存档</button><button id="profile-image" class="text-button">个人信息图</button></div></article><section class="card" id="rks-trend"></section><section class="card"><h3>难度统计</h3><table class="difficulty-table" aria-label="各难度 Clear、FC、AP 数量"><thead><tr><th scope="col">难度</th>${['EZ','HD','IN','AT'].map(level=>`<th scope="col" data-level="${level}">${level}</th>`).join('')}</tr></thead><tbody>${[['Clear',data.cleared],['FC',data.fullCombo],['AP',data.phi]].map(([label,values])=>`<tr><th scope="row">${label}</th>${[0,1,2,3].map(index=>`<td>${Number(values?.[index])||0}</td>`).join('')}</tr>`).join('')}</tbody></table><small>有效成绩 ${state.save.records.filter(record=>record.score>0).length} 条 · 有定数 ${state.save.records.filter(record=>record.constant>0).length} 条</small></section>`:`<div class="empty"><h2>${profile?'还没有本地成绩':'开始使用'}</h2><p>${profile?'同步云存档后查看成绩与推分历史。':'添加账号后即可同步。成绩与历史保存在本机。'}</p>${profile?'<button id="sync">同步云存档</button>':'<button class="go-tokens">添加账号</button>'}</div>`;
     }else if(page==='账号管理'){
