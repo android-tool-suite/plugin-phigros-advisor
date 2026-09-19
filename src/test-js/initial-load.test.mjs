@@ -25,3 +25,15 @@ test('missing data is applied; refresh uses a new data generation',async()=>{
   const first=create();await first.page('定数表');await first.page('定数表');await create().page('定数表');
   assert.equal(reads,2);assert.deepEqual(values,[null,null]);
 });
+
+test('only a rejected read is a failure; starting a retry clears that state',async()=>{
+  let reject,resolve;
+  const loader=phigrosInitialLoad.createLoader(()=>new Promise((ok,fail)=>{resolve=ok;reject=fail;}),()=>{});
+  const first=loader.page('定数表');await Promise.resolve();
+  assert.equal(loader.failed('song-catalog'),false);assert.equal(loader.has('song-catalog'),false);
+  reject(Error('read failed'));await assert.rejects(first,/read failed/);
+  assert.equal(loader.failed('song-catalog'),true);
+  const retry=loader.page('定数表');assert.equal(loader.failed('song-catalog'),false);
+  await Promise.resolve();resolve(null);await retry;
+  assert.equal(loader.has('song-catalog'),true);assert.equal(loader.failed('song-catalog'),false);
+});

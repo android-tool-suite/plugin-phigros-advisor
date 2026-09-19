@@ -13,16 +13,16 @@
   <script src="save-parser.js" defer></script>
   <script src="login.js" defer></script>
   <script src="rks.js" defer></script>
-  <script src="presentation.js" defer></script><script src="rks-trend.js" defer></script><script src="build-version.js" defer></script><script src="images.js" defer></script><script src="feedback.js" defer></script><script src="tab-pager.js" defer></script><script src="initial-load.js" defer></script><script src="push-target-cache.js" defer></script><script src="push-targets.js" defer></script><script src="app.js" defer></script>
+  <script src="presentation.js" defer></script><script src="rks-trend.js" defer></script><script src="build-version.js" defer></script><script src="images.js" defer></script><script src="feedback.js" defer></script><script src="loading-feedback.js" defer></script><script src="tab-pager.js" defer></script><script src="initial-load.js" defer></script><script src="push-target-cache.js" defer></script><script src="push-targets.js" defer></script><script src="app.js" defer></script>
 </head>
-<body>
+<body class="initializing" aria-busy="true">
 <main>
   <header class="section-header">
-    <div><p id="subtitle">正在读取本地数据…</p></div>
+    <div><p id="subtitle"></p></div>
     <div class="actions"><button id="accounts-open" class="secondary">账号管理</button><button id="refresh" class="secondary" aria-label="刷新本地数据">刷新</button></div>
   </header>
   <nav id="tabs" class="tabs" aria-label="页面"></nav>
-  <div id="progress" class="progress"><span></span></div>
+  <div id="progress" class="progress" style="visibility:hidden"><span></span></div>
   <section role="status" aria-live="polite" id="message" class="notice" hidden></section>
   <section id="content"></section>
 </main>

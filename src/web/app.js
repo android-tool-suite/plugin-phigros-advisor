@@ -15,8 +15,9 @@
   const encode = value => new TextEncoder().encode(JSON.stringify(value));
   const text = bytes => new TextDecoder().decode(bytes);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const showLoading = createLoadingFeedback(ui.progress);
   function setLoading(value){
-    state.loading=value;ui.progress.hidden=!value;
+    state.loading=value;showLoading(value);
     document.querySelectorAll('button').forEach(button=>{
       const readOnly=button.closest('#tabs,.snackbar')||button.matches('.level-filter,.scores-tab,.trend-range,.trend-hit,.go-tokens')||['accounts-open','accounts-close','cancel-login','close-image','cancel-delete-token'].includes(button.id);
       if(readOnly)return;
@@ -43,12 +44,10 @@
   async function load(){initializing=true;setLoading(true);message('');try{
     localData=createLocalData();state.save=null;state.snapshot=null;state.timeline=[];state.catalog=[];state.pushTargets={};
     await Promise.all([localData.ensure('profiles'),pager.initialize({deferContent:true})]);
-    renderTabs();if(state.page==='总览'){drawPage(state.page,pager.root(state.page));await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));}
-    // Restore the destination before constructing its content; do not paint empty data as final.
     let page;do{page=state.page;await localData.page(page);}while(page!==state.page);
     render();
-  }catch(error){message(error.message||'读取本地数据失败','danger');render();}finally{initializing=false;setLoading(false);}}
-  async function loadPage(){if(initializing||!localData||localData.has(state.page==='定数表'?'song-catalog':'analysis-data'))return;if(state.loading){pendingPage=true;return;}if(pageLoad)return pageLoad;pageLoad=runAction(async()=>{let page;do{page=state.page;await localData.page(page);}while(page!==state.page);render();}).finally(()=>{pageLoad=null;});return pageLoad;}
+  }catch(error){initializing=false;setLoading(false);message(error.message||'读取本地数据失败','danger');render();}finally{initializing=false;setLoading(false);document.body?.classList.remove('initializing');document.body?.removeAttribute('aria-busy');}}
+  async function loadPage(){if(initializing||!localData||localData.has(state.page==='定数表'?'song-catalog':'analysis-data'))return;if(state.loading){pendingPage=true;return;}if(pageLoad)return pageLoad;pageLoad=runAction(async()=>{try{let page;do{page=state.page;await localData.page(page);}while(page!==state.page);}finally{render();}}).finally(()=>{pageLoad=null;});return pageLoad;}
   function parseCatalog(raw){return phigrosPresentation.catalog(raw);}
   async function loadAnalysis(bytes){const files=await phigrosZip.read(bytes);state.analysisFiles=files;const scope=safeScope(state.profiles.selectedProfile);if(!scope)return;const save=files.get(`saves/save-${scope}.json`);const timeline=files.get(`timeline-${scope}.json`);if(save){state.save=JSON.parse(text(save));state.snapshot=phigrosRks.calculate(state.save.records||[]);state.pushTargets={};}if(timeline)state.timeline=JSON.parse(text(timeline));if(state.save)startPushTargets();}
   const safeScope=value=>String(value||'').replace(/[^A-Za-z0-9._-]/g,'_').slice(0,80);
@@ -84,7 +83,7 @@
   const pager=createTabPager({host:ui.content,tabs:ui.tabs,pages,initialPage:state.page,preloadNeighbors:false,isBusy:()=>false,renderPage:drawPage,onSelect:(page,root)=>{state.page=page;ui.content=root;renderTabs();setLoading(state.loading);loadPage();}});
   ui.content=pager.root(state.page);
   function render(){
-    const profile=selected();ui.subtitle.textContent=profile?`${profile.label} · ${profile.server==='GLOBAL'?'国际服':'国服'} · 数据保存在本机`:'尚未添加账号';
+    const profile=selected();ui.subtitle.textContent=!localData?.has('profiles')?'':profile?`${profile.label} · ${profile.server==='GLOBAL'?'国际服':'国服'} · 数据保存在本机`:'尚未添加账号';
     renderTabs();pager.refresh();if(document.getElementById('accounts-dialog').open)renderAccountsDialog();
   }
   function renderAccountsDialog(){const previousPage=state.page,previousRoot=ui.content;state.page='账号管理';ui.content=document.getElementById('accounts-content');try{renderBody();}finally{state.page=previousPage;ui.content=previousRoot;}}
@@ -95,16 +94,13 @@
   function renderBody(){
     trendViews.get(ui.content)?.dispose();trendViews.delete(ui.content);
     const profile=selected(),page=state.page==='成绩'?state.scoresPage:state.page;
-    if(state.page!=='账号管理'&&!(state.page==='总览'&&initializing&&Number(state.profiles.widget?.count)>0)&&(!localData||!localData.has(state.page==='定数表'?'song-catalog':'analysis-data'))){ui.content.innerHTML='<div class="empty">本页数据尚未加载。<button class="secondary" id="retry-page">加载本页</button></div>';byId('retry-page').onclick=loadPage;setLoading(state.loading);return;}
+    const dataset=state.page==='定数表'?'song-catalog':'analysis-data';
+    if(state.page!=='账号管理'&&(!localData||!localData.has(dataset))){
+      ui.content.replaceChildren();
+      if(localData?.failed(dataset)||localData?.failed('profiles')){ui.content.innerHTML='<div class="empty">本页数据读取失败。<button class="secondary" id="retry-page">重试</button></div>';byId('retry-page').onclick=localData.failed('profiles')?load:loadPage;}
+      setLoading(state.loading);return;
+    }
     if(page==='总览'){
-      if (!state.save && state.loading && state.profiles.widget && Number(state.profiles.widget.count)>0) {
-        const widget=state.profiles.widget;
-        let rks=Number(widget.rks);
-        if(!Number.isFinite(rks) && widget.rksBits!=null){const bytes=new ArrayBuffer(8),view=new DataView(bytes);view.setBigUint64(0,BigInt(widget.rksBits));rks=view.getFloat64(0);}
-        ui.content.innerHTML=`<article class="card hero"><small>${escapeHtml(widget.player||profile?.label||'Phigros')}</small><div class="big">${Number.isFinite(rks)?rks.toFixed(4):'—'} <span>RKS</span></div><p>${Number(widget.count)} 条成绩</p><small>上次同步摘要 · 正在补全成绩详情</small></article>`;
-        return;
-      }
-
       const data=state.save?.profile||{};
       ui.content.innerHTML=state.save?`<article class="card hero player-summary"><h2>${escapeHtml(data.playerId||profile?.label||'当前账号')}</h2>${data.selfIntro?`<p class="self-intro">${escapeHtml(data.selfIntro)}</p>`:''}<div class="row"><div><small>本地计算 RKS</small><strong class="rks-value">${state.snapshot.overall.toFixed(4)}</strong></div><div class="player-meta"><strong>课题模式 ${Math.floor((data.challengeModeRank||0)/100)} / ${(data.challengeModeRank||0)%100}</strong><p>${formatMoney(data.money||[])}</p></div></div>${data.officialRks>0&&Math.abs(data.officialRks-state.snapshot.overall)>.001?`<small>官方存档 RKS ${Number(data.officialRks).toFixed(4)} · 本地计算差 ${(state.snapshot.overall-data.officialRks).toFixed(4)}</small>`:''}<small>存档时间 ${escapeHtml(String(data.saveUpdatedAt||'—').slice(0,19).replace('T',' '))} · ${profile?.server==='GLOBAL'?'国际服':'国服'}</small><div class="actions primary-actions"><button id="sync">同步云存档</button><button id="profile-image" class="text-button">个人信息图</button></div></article><section class="card" id="rks-trend"></section><section class="card"><h3>难度统计</h3><table class="difficulty-table" aria-label="各难度 Clear、FC、AP 数量"><thead><tr><th scope="col">难度</th>${['EZ','HD','IN','AT'].map(level=>`<th scope="col" data-level="${level}">${level}</th>`).join('')}</tr></thead><tbody>${[['Clear',data.cleared],['FC',data.fullCombo],['AP',data.phi]].map(([label,values])=>`<tr><th scope="row">${label}</th>${[0,1,2,3].map(index=>`<td>${Number(values?.[index])||0}</td>`).join('')}</tr>`).join('')}</tbody></table><small>有效成绩 ${state.save.records.filter(record=>record.score>0).length} 条 · 有定数 ${state.save.records.filter(record=>record.constant>0).length} 条</small></section>`:`<div class="empty"><h2>${profile?'还没有本地成绩':'开始使用'}</h2><p>${profile?'同步云存档后查看成绩与推分历史。':'添加账号后即可同步。成绩与历史保存在本机。'}</p>${profile?'<button id="sync">同步云存档</button>':'<button class="go-tokens">添加账号</button>'}</div>`;
     }else if(page==='账号管理'){

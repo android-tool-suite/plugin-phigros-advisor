@@ -7,7 +7,7 @@ function application(failWrite=false,pendingProfile='fixture'){
   const elements=new Map(),writes=[],calls=[];
   const element=()=>({dataset:{},style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},replaceChildren(){},querySelector:()=>null,querySelectorAll:()=>[],closest:()=>null});
   const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
-  const context=vm.createContext({TextEncoder,TextDecoder,Uint8Array,DataView,ArrayBuffer,crypto,console,
+  const context=vm.createContext({TextEncoder,TextDecoder,Uint8Array,DataView,ArrayBuffer,crypto,console,setTimeout,clearTimeout,
     document:{getElementById:get,createElement:element,querySelector:()=>null,querySelectorAll:()=>[],head:element(),documentElement:element()},
     MutationObserver:class{observe(){}},getComputedStyle:()=>({colorScheme:'light'}),setInterval:()=>0,
     createFeedback:()=>()=>{},createTabPager:()=>({root:()=>element(),syncTabs(){},refresh(){},initialize:()=>{}}),
@@ -19,7 +19,7 @@ function application(failWrite=false,pendingProfile='fixture'){
       writeDataset:async(id,bytes)=>{if(failWrite&&id==='analysis-data')throw Error('disk full');writes.push({id,bytes});}},
   });
   context.window=context;
-  for(const file of ['rks','zip','presentation','push-target-cache','initial-load'])vm.runInContext(readFileSync(new URL(`../web/${file}.js`,import.meta.url),'utf8'),context);
+  for(const file of ['loading-feedback','rks','zip','presentation','push-target-cache','initial-load'])vm.runInContext(readFileSync(new URL(`../web/${file}.js`,import.meta.url),'utf8'),context);
   context.phigrosPushTargets={prepare:(records,id)=>context.phigrosPushCache.create(records,id)};
   context.phigrosSaveParser={parse:async()=>save()};
   const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
